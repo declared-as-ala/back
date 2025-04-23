@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Pfe",
+    "slug": "Pfe",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "permissions": ["ACTIVITY_RECOGNITION"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff",
+        "config": {
+          "googleMaps": {
+            "apiKey": "AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg"
+          }
+        }
+      },
+      "package": "com.ala17.Pfe"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "58742fd1-a589-47f9-8bed-2d96e856c5ea"
+      }
+    }
+  },
+  "android": {
+    "permissions": ["INTERNET"]
+  },
+  "ios": {
+    "permissions": ["INTERNET"]
+  }
+}
