@@ -1,4 +1,3 @@
-/* app/(drawer)/_layout.tsx */
 import { Drawer } from "expo-router/drawer";
 import {
   DrawerContentScrollView,
@@ -25,9 +24,6 @@ export default function DrawerLayout() {
   const [imgErr, setImgErr] = useState(false);
   const [uri, setUri] = useState("");
 
-  /* ------------------------------------------------------------ */
-  /* load avatar on mount / when user changes                     */
-  /* ------------------------------------------------------------ */
   useEffect(() => {
     if (user?.profileImage) {
       setUri(UPLOADS + user.profileImage + "?t=" + Date.now());
@@ -51,7 +47,6 @@ export default function DrawerLayout() {
           {...props}
           contentContainerStyle={{ backgroundColor: bg, flex: 1 }}
         >
-          {/* ---------- avatar & name -------------------- */}
           <View style={styles.profile}>
             {!imgErr && uri ? (
               <Avatar.Image
@@ -65,10 +60,8 @@ export default function DrawerLayout() {
             <Text style={[styles.name, { color: txt }]}>{user.fullName}</Text>
           </View>
 
-          {/* ---------- drawer items --------------------- */}
           <DrawerItemList {...props} />
 
-          {/* ---------- theme switch --------------------- */}
           <View style={styles.switchRow}>
             <MaterialCommunityIcons
               name={isDark ? "weather-night" : "white-balance-sunny"}
@@ -78,10 +71,10 @@ export default function DrawerLayout() {
             <Text style={[styles.switchLbl, { color: txt }]}>
               {isDark ? "Dark Mode" : "Light Mode"}
             </Text>
+
             <Switch value={isDark} onValueChange={toggleTheme} />
           </View>
 
-          {/* ---------- logout --------------------------- */}
           <TouchableOpacity
             style={styles.logout}
             onPress={() => {
@@ -95,7 +88,6 @@ export default function DrawerLayout() {
         </DrawerContentScrollView>
       )}
     >
-      {/* HOME (tabs) */}
       <Drawer.Screen
         name="(tabs)"
         options={{
@@ -111,7 +103,6 @@ export default function DrawerLayout() {
         }}
       />
 
-      {/* STEPS */}
       <Drawer.Screen
         name="Steps"
         options={{
@@ -122,7 +113,6 @@ export default function DrawerLayout() {
         }}
       />
 
-      {/* PLAN / WORKOUTS */}
       <Drawer.Screen
         name="Plan"
         options={{
@@ -137,7 +127,6 @@ export default function DrawerLayout() {
         }}
       />
 
-      {/* CHAT */}
       <Drawer.Screen
         name="Chat"
         options={{
@@ -151,11 +140,24 @@ export default function DrawerLayout() {
           ),
         }}
       />
+
+      <Drawer.Screen
+        name="HealthPredictorScreen"
+        options={{
+          drawerLabel: "Health Predictor",
+          drawerIcon: ({ color }) => (
+            <MaterialCommunityIcons
+              name="heart-pulse"
+              size={22}
+              color={color}
+            />
+          ),
+        }}
+      />
     </Drawer>
   );
 }
 
-/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
   profile: { alignItems: "center", marginVertical: 24 },
   name: { fontWeight: "700", fontSize: 16, marginTop: 8 },

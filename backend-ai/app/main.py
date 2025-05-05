@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import chat, t5_router, plan_generator
+from app.routers import chat, plan_generator
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Medical Chat API")
@@ -7,7 +7,7 @@ app = FastAPI(title="Medical Chat API")
 # Inclure les routeurs séparément
 app.include_router(chat.router, prefix="/api")
 app.include_router(plan_generator.router, prefix="/api")
-app.include_router(t5_router.router, prefix="/api")
+
 # Middleware CORS
 app.add_middleware(
     CORSMiddleware,

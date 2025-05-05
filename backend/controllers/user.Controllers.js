@@ -1,39 +1,38 @@
+/* -------------------------------------------------------------------------- */
+/*  controllers/user.controller.js                                            */
+/* -------------------------------------------------------------------------- */
 const User = require("../models/User.model");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const path = require("path");
 
-// Set up multer for profile image upload
+/* ------------------------------ Multer setup ------------------------------ */
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/"); // Folder where images are stored
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
 });
 const upload = multer({ storage });
-
-// JWT Secret Key
-const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
-
-// Middleware to handle single file upload with key "profileImage"
 exports.uploadProfileImage = upload.single("profileImage");
 
-// Create User (Signup) - Only Email & Password
+/* ----------------------------- JWT secret key ----------------------------- */
+const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
+
+/* ------------------------------- Helpers ---------------------------------- */
+const toFileName = (value = "") =>
+  value.startsWith("http") ? value.split("/").pop() : value;
+
+/* -------------------------------------------------------------------------- */
+/*  AUTH – Signup                                                             */
+/* -------------------------------------------------------------------------- */
 exports.createUser = async (req, res) => {
   try {
     const { email, password, fullName, gender, age, height, weight, birthday } =
       req.body;
 
-    // Check if email already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    if (await User.findOne({ email }))
       return res.status(400).json({ error: "Email already in use" });
-    }
 
-    // Hash password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = new User({
@@ -45,66 +44,62 @@ exports.createUser = async (req, res) => {
       height: height ?? null,
       weight: weight ?? null,
       birthday: birthday || null,
-      profileImage: "", // Default empty
+      profileImage: "", // file name only
     });
 
     await user.save();
     res.status(201).json({ message: "User created successfully", user });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 };
 
-// Login User
+/* -------------------------------------------------------------------------- */
+/*  AUTH – Login                                                              */
+/* -------------------------------------------------------------------------- */
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check if user exists
     const user = await User.findOne({ email });
-    if (!user) {
+    if (!user)
       return res.status(400).json({ error: "Invalid email or password" });
-    }
 
-    // Validate password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok)
       return res.status(400).json({ error: "Invalid email or password" });
-    }
 
-    // Generate JWT token
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
       expiresIn: "7d",
     });
 
     res.json({ message: "Login successful", token, user });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Get Profile (Protected)
+/* -------------------------------------------------------------------------- */
+/*  PROFILE – Get                                                             */
+/* -------------------------------------------------------------------------- */
 exports.getProfile = async (req, res) => {
   try {
-    const userId = req.user.id; // assuming authentication middleware adds user to req
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    const user = await User.findById(userId).select("-password"); // exclude password
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    res.status(200).json({ user });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const obj = user.toObject();
+    obj.profileImage = toFileName(obj.profileImage); // filename only
+    res.json({ user: obj });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Update Profile (Including optional Profile Image update)
+/* -------------------------------------------------------------------------- */
+/*  PROFILE – Update (body JSON)                                              */
+/* -------------------------------------------------------------------------- */
 exports.updateProfile = async (req, res) => {
   try {
-    const userId = req.user.id;
-
-    // Build an update object from request body
     const updates = {
       fullName: req.body.fullName,
       gender: req.body.gender,
@@ -112,87 +107,67 @@ exports.updateProfile = async (req, res) => {
       height: req.body.height,
       weight: req.body.weight,
       birthday: req.body.birthday,
-      profileImage: req.body.profileImage, // optional field
     };
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
+    if (req.body.profileImage)
+      updates.profileImage = toFileName(req.body.profileImage);
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
       { $set: updates },
       { new: true, runValidators: true }
     ).select("-password");
 
-    if (!updatedUser) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    res
-      .status(200)
-      .json({ message: "Profile updated successfully", user: updatedUser });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.json({ message: "Profile updated", user });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 };
 
-// Save Profile Image - update user's document with image URL
+/* -------------------------------------------------------------------------- */
+/*  PROFILE – Upload image (multipart)                                        */
+/* -------------------------------------------------------------------------- */
 exports.saveProfileImage = async (req, res) => {
   try {
-    const userId = req.user.id;
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-    // Instead of relying on req.file.path,
-    // use req.file.filename to build the URL reliably.
-    const fullUrl = `${req.protocol}://${req.get("host")}/uploads/${
-      req.file.filename
-    }`;
+    const fileName = req.file.filename; // keep only the file name
 
-    // Update user document in the database with the constructed URL
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { profileImage: fullUrl },
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { profileImage: fileName },
       { new: true }
     ).select("-password");
 
-    if (!updatedUser) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    res.setHeader("Content-Type", "image/jpeg");
-    return res.json({
-      message: "Image uploaded and user updated",
-      user: updatedUser,
-    });
-  } catch (error) {
-    console.error("Error saving profile image:", error);
-    res.status(500).json({ error: error.message });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    res.json({ message: "Image uploaded", user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Logout User
-exports.logoutUser = (req, res) => {
-  try {
-    res.json({ message: "Logout successful" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+/* -------------------------------------------------------------------------- */
+/*  OTHER endpoints (logout / delete / list)                                  */
+/* -------------------------------------------------------------------------- */
+exports.logoutUser = (req, res) => res.json({ message: "Logout successful" });
 
-// Delete User
 exports.deleteUser = async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
     res.json({ message: "User deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Get All Users (optional)
-exports.getUsers = async (req, res) => {
+exports.getUsers = async (_req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find().select("-password");
     res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

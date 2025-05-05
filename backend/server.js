@@ -11,12 +11,15 @@ const PORT = 5000;
 
 // Middleware
 const cors = require("cors");
+
 app.use(
   cors({
-    origin: "*", // Autorise toutes les origines
+    origin: "http://localhost:8081", // ✅ set your actual frontend origin (no "*")
+    credentials: true, // ✅ allow cookies/headers
     methods: ["GET", "POST", "PUT", "DELETE"],
   })
 );
+
 app.use(express.json());
 
 // Routes

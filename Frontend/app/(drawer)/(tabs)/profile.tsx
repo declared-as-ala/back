@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  RefreshControl,
   Platform,
 } from "react-native";
 import { Text, Button, TextInput, Snackbar, Avatar } from "react-native-paper";
@@ -20,6 +21,7 @@ import {
   UpdateProfilePayload,
 } from "@/services/auth";
 import { API_BASE_URL } from "@/services/api";
+import { useRefresher } from "@/hooks/useRefresher";
 
 const UPLOADS_BASE_URL = API_BASE_URL.replace(/\/api$/, "") + "/uploads/";
 
@@ -80,6 +82,8 @@ export default function ProfileScreen() {
       setLoading(false);
     }
   };
+
+  const { refreshing, onRefresh } = useRefresher(fetchProfile);
 
   useEffect(() => {
     fetchProfile();
@@ -160,7 +164,12 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       <View style={styles.blurCard}>
         <BlurView intensity={50} tint="light" style={styles.blurContent}>
           <View style={styles.header}>

@@ -36,3 +36,12 @@ exports.getStatsByUser = async (req, res) => {
     res.status(500).json({ message: "Error fetching stats" });
   }
 };
+exports.getAllStats = async (req, res) => {
+  try {
+    const stats = await DailyStats.find({}).sort({ date: -1 });
+    res.json(stats);
+  } catch (err) {
+    console.error("Error fetching all stats:", err);
+    res.status(500).json({ message: "Error fetching all stats" });
+  }
+};

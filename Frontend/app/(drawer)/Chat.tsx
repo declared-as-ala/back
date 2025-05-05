@@ -1,42 +1,68 @@
-// ChatScreen.tsx
-// Expo + React Native chat interface for MedChat Assistant
-import React, { useState, useRef } from "react";
+// src/screens/ChatScreen.tsx
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   SafeAreaView,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   FlatList,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
+  StyleSheet,
+  LayoutAnimation,
+  Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import ChatTypeSelector from "@/components/chat/ChatTypeSelector";
+import ChatBubble from "@/components/chat/ChatBubble";
+import ChatInputBar from "@/components/chat/ChatInputBar";
+import { useAppStore } from "@/store";
+import { themes } from "@/constants/theme";
+import { API_AI_URL } from "@/services/api";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-const API_URL = "http://127.0.0.1:8000/api/chat";
+const API_URL = `${API_AI_URL}/api/chat`;
 
 const ChatScreen: React.FC = () => {
+  const { theme } = useAppStore();
+  const t = themes[theme];
+
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
+  const [input, setInput] = useState("");
   const [chatType, setChatType] = useState<"symptom" | "food" | "explore">(
     "symptom"
   );
-  const flatListRef = useRef<FlatList<Message>>(null);
+  const [loading, setLoading] = useState(false);
 
-  const sendMessage = async (): Promise<void> => {
+  const flatRef = useRef<FlatList<Message>>(null);
+
+  // Show welcome message on chatType change with typing effect
+  useEffect(() => {
+    const welcomeText =
+      chatType === "symptom"
+        ? "👋 Describe your symptoms, and I'll help you understand what might be going on."
+        : chatType === "food"
+        ? "🍎 Ask me about any food, and I'll provide nutritional info."
+        : "🔍 Explore any medical condition with me!";
+
+    let idx = 0;
+    // Clear previous messages, start fresh with one blank assistant message
+    setMessages([{ role: "assistant", content: "" }]);
+    const interval = setInterval(() => {
+      idx++;
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setMessages((prev) => [
+        { role: "assistant", content: welcomeText.slice(0, idx) },
+      ]);
+      if (idx >= welcomeText.length) clearInterval(interval);
+    }, 30);
+
+    return () => clearInterval(interval);
+  }, [chatType]);
+
+  const sendMessage = useCallback(async () => {
     const text = input.trim();
     if (!text) return;
-
-    const userMsg: Message = { role: "user", content: text };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
     setLoading(true);
 
     try {
@@ -50,164 +76,71 @@ const ChatScreen: React.FC = () => {
         }),
       });
       const data = await response.json();
-      const assistantMsg: Message = {
-        role: "assistant",
-        content: data.response,
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-    } catch (error) {
-      const errorMsg: Message = {
-        role: "assistant",
-        content: "حدث خطأ في الاتصال بالخادم.",
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.response },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "حدث خطأ في الاتصال بالخادم." },
+      ]);
     } finally {
       setLoading(false);
       setInput("");
-      flatListRef.current?.scrollToEnd({ animated: true });
+      flatRef.current?.scrollToEnd({ animated: true });
     }
-  };
+  }, [input, chatType]);
 
-  const renderItem = ({ item }: { item: Message }) => (
-    <View
-      style={[
-        styles.messageContainer,
-        item.role === "user" ? styles.userMsg : styles.botMsg,
-      ]}
-    >
-      <Text
-        style={[
-          styles.messageText,
-          item.role === "assistant" && styles.botText,
-        ]}
-      >
-        {item.content}
-      </Text>
-    </View>
-  );
-
-  const renderChatTypeSelector = () => (
-    <View style={styles.selectorContainer}>
-      {["symptom", "food", "explore"].map((type) => (
-        <TouchableOpacity
-          key={type}
-          style={[
-            styles.selectorButton,
-            chatType === type && styles.selectorButtonActive,
-          ]}
-          onPress={() => setChatType(type as typeof chatType)}
-        >
-          <Text
-            style={[
-              styles.selectorText,
-              chatType === type && styles.selectorTextActive,
-            ]}
-          >
-            {type === "symptom"
-              ? "Symptoms"
-              : type === "food"
-              ? "Food"
-              : "Explore"}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
+  const renderItem = useCallback(
+    ({ item }: { item: Message }) => (
+      <ChatBubble role={item.role} content={item.content} />
+    ),
+    []
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {renderChatTypeSelector()}
+    <SafeAreaView style={[styles.container, { backgroundColor: t.background }]}>
       <FlatList
-        ref={flatListRef}
+        ref={flatRef}
         data={messages}
-        keyExtractor={(_, index) => index.toString()}
+        keyExtractor={(_, i) => i.toString()}
+        ListHeaderComponent={
+          <ChatTypeSelector chatType={chatType} setChatType={setChatType} />
+        }
         renderItem={renderItem}
         contentContainerStyle={styles.chatContainer}
+        ListFooterComponent={
+          loading ? (
+            <ActivityIndicator
+              size="large"
+              color={t.primary}
+              style={styles.loader}
+            />
+          ) : null
+        }
       />
 
-      {loading && (
-        <ActivityIndicator size="large" color="#6200ee" style={styles.loader} />
-      )}
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-      >
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder={
-              chatType === "symptom"
-                ? "Describe your symptoms..."
-                : chatType === "food"
-                ? "Enter food name..."
-                : "Enter disease name..."
-            }
-            value={input}
-            onChangeText={setInput}
-            onSubmitEditing={sendMessage}
-            returnKeyType="send"
-          />
-          <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
-            <Ionicons name="send" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+      <ChatInputBar
+        input={input}
+        setInput={setInput}
+        onSend={sendMessage}
+        placeholder={
+          chatType === "symptom"
+            ? "Describe your symptoms..."
+            : chatType === "food"
+            ? "Enter food name..."
+            : "Enter disease name..."
+        }
+      />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f7f7f7" },
-  selectorContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    padding: 10,
-    backgroundColor: "#fff",
-  },
-  selectorButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    backgroundColor: "#e0e0e0",
-  },
-  selectorButtonActive: { backgroundColor: "#6200ee" },
-  selectorText: { fontSize: 14, color: "#000" },
-  selectorTextActive: { color: "#fff" },
+  container: { flex: 1 },
   chatContainer: { padding: 10 },
-  messageContainer: {
-    marginVertical: 5,
-    padding: 10,
-    borderRadius: 20,
-    maxWidth: "80%",
-  },
-  userMsg: { alignSelf: "flex-end", backgroundColor: "#6200ee" },
-  botMsg: { alignSelf: "flex-start", backgroundColor: "#e0e0e0" },
-  messageText: { fontSize: 16, color: "#fff" },
-  botText: { color: "#000" },
-  loader: { marginVertical: 10 },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    borderTopWidth: 1,
-    borderColor: "#ddd",
-    backgroundColor: "#fff",
-  },
-  input: {
-    flex: 1,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    fontSize: 16,
-  },
-  sendButton: {
-    backgroundColor: "#6200ee",
-    borderRadius: 20,
-    padding: 10,
-    marginLeft: 8,
-  },
+  loader: { marginVertical: 12 },
 });
 
 export default ChatScreen;

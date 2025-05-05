@@ -1,26 +1,36 @@
-// constants/theme.ts
-import { MD3LightTheme, MD3DarkTheme } from "react-native-paper";
-
-export const LightTheme = {
-  ...MD3LightTheme,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: "#7F3DFF",
-    background: "#F8F9FB",
-    surface: "#fff",
-    text: "#1E1E1E",
-    onSurface: "#000",
+// src/constants/theme.ts
+export const themes = {
+  light: {
+    background: "#f7f7f7",
+    card: "#fff",
+    primary: "#8e44ad",
+    inputBg: "#f0f0f0",
+    textPrimary: "#000",
+    textSecondary: "#fff",
+    messageBot: "#e0e0e0",
+    shadow: {
+      // cross-platform shadow
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
   },
-};
-
-export const DarkTheme = {
-  ...MD3DarkTheme,
-  colors: {
-    ...MD3DarkTheme.colors,
-    primary: "#BB86FC",
+  dark: {
     background: "#121212",
-    surface: "#1E1E1E",
-    text: "#fff",
-    onSurface: "#fff",
+    card: "#1e1e1e",
+    primary: "#bb86fc",
+    inputBg: "#2c2c2c",
+    textPrimary: "#fff",
+    textSecondary: "#000",
+    messageBot: "#2a2a2a",
+    shadow: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 5,
+      elevation: 4,
+    },
   },
 };
