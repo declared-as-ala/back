@@ -10,12 +10,15 @@ const authMiddleware = require("../middlewares/auth.middleware");
 router.post("/signup", UserController.createUser);
 router.post("/login", UserController.loginUser);
 
+// 🔐 Forget password routes
+router.post("/forgot-password", UserController.requestPasswordReset);
+router.post("/verify-otp", UserController.verifyOTP);
+router.post("/reset-password", UserController.resetPassword);
+
 /* ---------- Protected (auth) ---------- */
 router.post("/logout", authMiddleware, UserController.logoutUser);
-
 router.get("/profile", authMiddleware, UserController.getProfile);
 router.put("/profile", authMiddleware, UserController.updateProfile);
-
 router.post(
   "/profile/upload",
   authMiddleware,
@@ -23,7 +26,7 @@ router.post(
   UserController.saveProfileImage
 );
 
-/* Optional admin / debug */
+/* ---------- Optional admin / debug ---------- */
 router.get("/users", UserController.getUsers);
 router.delete("/user/:id", authMiddleware, UserController.deleteUser);
 

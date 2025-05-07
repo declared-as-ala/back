@@ -6,6 +6,9 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const path = require("path");
+const { sendOTPEmail } = require("../utils/sendEmail");
+
+const otpStore = new Map();
 
 /* ------------------------------ Multer setup ------------------------------ */
 const storage = multer.diskStorage({
@@ -44,7 +47,7 @@ exports.createUser = async (req, res) => {
       height: height ?? null,
       weight: weight ?? null,
       birthday: birthday || null,
-      profileImage: "", // file name only
+      profileImage: "",
     });
 
     await user.save();
@@ -80,6 +83,57 @@ exports.loginUser = async (req, res) => {
 };
 
 /* -------------------------------------------------------------------------- */
+/*  AUTH – Forgot Password via OTP                                            */
+/* -------------------------------------------------------------------------- */
+exports.requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(email, { otp, createdAt: Date.now() });
+
+    await sendOTPEmail(email, otp);
+    res.json({ message: "OTP sent to your email" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const entry = otpStore.get(email);
+    if (!entry || entry.otp !== otp)
+      return res.status(400).json({ error: "Invalid or expired OTP" });
+
+    const age = (Date.now() - entry.createdAt) / 1000;
+    if (age > 300) return res.status(400).json({ error: "OTP expired" });
+
+    res.json({ message: "OTP verified" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    if (!otpStore.has(email))
+      return res.status(400).json({ error: "OTP verification required" });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await User.findOneAndUpdate({ email }, { password: hashed });
+
+    otpStore.delete(email);
+    res.json({ message: "Password reset successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/* -------------------------------------------------------------------------- */
 /*  PROFILE – Get                                                             */
 /* -------------------------------------------------------------------------- */
 exports.getProfile = async (req, res) => {
@@ -88,7 +142,7 @@ exports.getProfile = async (req, res) => {
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const obj = user.toObject();
-    obj.profileImage = toFileName(obj.profileImage); // filename only
+    obj.profileImage = toFileName(obj.profileImage);
     res.json({ user: obj });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -133,7 +187,7 @@ exports.saveProfileImage = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-    const fileName = req.file.filename; // keep only the file name
+    const fileName = req.file.filename;
 
     const user = await User.findByIdAndUpdate(
       req.user.id,

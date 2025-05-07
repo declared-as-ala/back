@@ -8,13 +8,14 @@ const statsRoutes = require("./routes/stats.routes");
 const path = require("path");
 const app = express();
 const PORT = 5000;
+require("dotenv").config(); // ← add this
 
 // Middleware
 const cors = require("cors");
 
 app.use(
   cors({
-    origin: "http://localhost:8081", // ✅ set your actual frontend origin (no "*")
+    origin: "*", // ✅ set your actual frontend origin (no "*")
     credentials: true, // ✅ allow cookies/headers
     methods: ["GET", "POST", "PUT", "DELETE"],
   })
