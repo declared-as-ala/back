@@ -3,7 +3,7 @@
 # dependencies
 node_modules/
 .venv/
-
+.env
 # Expo
 .expo/
 dist/
@@ -12,6 +12,7 @@ expo-env.d.ts
 
 # Native
 *.orig.*
+*.env
 *.jks
 *.p8
 *.p12
